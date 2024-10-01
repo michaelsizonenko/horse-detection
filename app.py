@@ -3,7 +3,7 @@ import tempfile
 import streamlit as st
 
 from cut_video import main as cut_video_main
-from process_video import process_video
+from process_video import VideoProcessor
 
 
 def main() -> None:
@@ -35,9 +35,8 @@ def main() -> None:
 
             if st.button("Process video"):
                 with st.spinner("Processing video... (Removing background)"):
-                    processed_video = process_video(
-                        st.session_state["cropped_video"], "output_video.webm"
-                    )
+                    videoprocessor = VideoProcessor(st.session_state["cropped_video"])
+                    processed_video = videoprocessor.process_video("output_video.webm")
                     st.session_state["processed_video"] = processed_video
                     st.write("Background removed successfully.")
 
