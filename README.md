@@ -1,6 +1,6 @@
 # CV test task 
 
-Python version: 3.9
+Python version: 3.12.12
 
 ## Run with Make 
 ```bash
