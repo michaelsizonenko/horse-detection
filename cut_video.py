@@ -39,7 +39,7 @@ def is_moving_right(p0, p1, status):
     return False
 
 # Main function
-def main(video_path, output_filename="horse_moving_right_fragment.mp4", stop_threshold=15):
+def main(video_path, output_filename="horse_moving_right_fragment.webm", stop_threshold=15):
     # Open video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -51,7 +51,7 @@ def main(video_path, output_filename="horse_moving_right_fragment.mp4", stop_thr
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     # Define video codec and create VideoWriter object for output video
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4
+    fourcc = cv2.VideoWriter_fourcc(*'vp80')  # Codec for MP4
     out = None
 
     # Parameters for Lucas-Kanade Optical Flow
@@ -100,13 +100,6 @@ def main(video_path, output_filename="horse_moving_right_fragment.mp4", stop_thr
 
             # Draw the tracks
             good_new = p1[status == 1]
-            good_old = p0[status == 1]
-
-            for i, (new, old) in enumerate(zip(good_new, good_old)):
-                a, b = int(new[0]), int(new[1])  # Ensure these are integers
-                c, d = int(old[0]), int(old[1])
-                mask = cv2.line(mask, (a, b), (c, d), (0, 255, 0), 2)
-                frame = cv2.circle(frame, (a, b), 5, (0, 0, 255), -1)
 
             # Write the frame to the output video if horse is moving
             out.write(frame)
@@ -134,6 +127,8 @@ def main(video_path, output_filename="horse_moving_right_fragment.mp4", stop_thr
         frame_count += 1
 
     cap.release()
+
+    return output_filename
 
 
 # Run the main function

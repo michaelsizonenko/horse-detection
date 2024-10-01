@@ -3,9 +3,12 @@ import tempfile
 import cv2
 import streamlit as st
 
+from cut_video import main
+from process_video import VideoProcessor
+
 title = st.title("CV Test Task")
 
-video_file = st.file_uploader("Upload a video", type=['mp4', 'mov', 'avi'])
+video_file = st.file_uploader("Upload a video")
 
 if 'cropped_video' not in st.session_state:
     st.session_state.cropped_video = None
@@ -15,24 +18,26 @@ if video_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(video_file.read())
 
-    video_capture = cv2.VideoCapture(tfile.name) # convert to opencv compatible format for processing
-
     st.video(tfile.name)
+    print(tfile)
 
     if st.button("Crop video"):
-        # function to crop video
-        st.session_state.cropped_video = tfile.name # cropped video
+        cropped_video = main(tfile.name)
+        st.session_state.cropped_video = cropped_video # cropped video
         st.write("Video cropped successfully.")
 
     if st.session_state.cropped_video:
 
         st.video(st.session_state.cropped_video)
+        print(st.session_state.cropped_video)
 
         if st.button("Process video"):
             # function to process video (background removal)
-            st.session_state.processed_video = tfile.name # processed video
+            processed_video = VideoProcessor(st.session_state.cropped_video, f'output_video.webm')
+            st.session_state.processed_video = processed_video.process_video() # processed video
             if st.session_state.cropped_video:
                 st.video(st.session_state.processed_video)
+                print(st.session_state.processed_video)
                 st.write("Background removed successfully.")
 
             else:

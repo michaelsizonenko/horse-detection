@@ -19,7 +19,7 @@ class VideoProcessor:
 
         fps = int(self.cap.get(cv2.CAP_PROP_FPS))
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 format
+        fourcc = cv2.VideoWriter_fourcc(*'vp80')  # Codec for .mp4 format
         self.out = cv2.VideoWriter(self.output_video_path, fourcc, fps, IMG_SIZE)
 
         if not self.out.isOpened():
@@ -65,6 +65,8 @@ class VideoProcessor:
 
         self.release_resources()
 
+        return self.output_video_path
+
     def release_resources(self):
         if self.cap:
             self.cap.release()
@@ -73,13 +75,3 @@ class VideoProcessor:
         cv2.destroyAllWindows()
         print(f"Processed video saved to: {self.output_video_path}")
 
-
-# Usage
-input_video = "Horse.mp4"  # Path to input video
-output_video = "output_video.mp4"  # Path to save the processed video
-
-try:
-    processor = VideoProcessor(input_video, output_video)
-    processor.process_video()
-except Exception as e:
-    print(f"An error occurred: {e}")
