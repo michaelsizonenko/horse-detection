@@ -9,6 +9,10 @@ make build # build docker image
 make run # run the container
 
 make stop # stop the container
+
+make clean # clean everything
+
+make rebuild # rebuild the docker image and run the container
 ```
 
 ## Run with Docker
