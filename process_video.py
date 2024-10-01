@@ -1,77 +1,78 @@
+import torch
 from ultralytics import YOLO
 import cv2
 import numpy as np
+from typing import Tuple
 
-IMG_SIZE = (640, 640)
-class VideoProcessor:
-    def __init__(self, input_video_path, output_video_path, model_path="best.pt"):
-        self.input_video_path = input_video_path
-        self.output_video_path = output_video_path
-        self.model = YOLO(model_path)
-        self.cap = None
-        self.out = None
-
-    def open_video(self):
-        self.cap = cv2.VideoCapture(self.input_video_path)
-        if not self.cap.isOpened():
-            raise IOError(f"Error: Could not open video {self.input_video_path}")
+IMG_SIZE: Tuple[int, int] = (640, 640)
 
 
-        fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+model = YOLO("best.pt")
+def open_video(input_video_path: str, output_video_path: str) -> Tuple[cv2.VideoCapture, cv2.VideoWriter]:
+    cap = cv2.VideoCapture(input_video_path)
+    if not cap.isOpened():
+        raise IOError(f"Error: Could not open video {input_video_path}")
 
-        fourcc = cv2.VideoWriter_fourcc(*'vp80')  # Codec for .mp4 format
-        self.out = cv2.VideoWriter(self.output_video_path, fourcc, fps, IMG_SIZE)
+    fps: int = int(cap.get(cv2.CAP_PROP_FPS))
 
-        if not self.out.isOpened():
-            raise IOError(f"Error: Could not open output video {self.output_video_path}")
+    fourcc: int = cv2.VideoWriter_fourcc(*'vp80')
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, IMG_SIZE)
 
-    def process_frame(self, frame):
-        frame_resized = cv2.resize(frame, IMG_SIZE)
-        frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+    if not out.isOpened():
+        raise IOError(f"Error: Could not open output video {output_video_path}")
 
-        results = self.model.predict(frame_rgb, conf=0.5, classes=0)
+    return cap, out
 
-        for result in results:
-            if hasattr(result, 'masks') and result.masks is not None:
-                height, width = result.orig_img.shape[:2]
-                background = np.zeros((height, width), dtype=np.uint8)
+def process_frame(frame: np.ndarray, model: YOLO) -> np.ndarray:
+    frame_resized: np.ndarray = cv2.resize(frame, IMG_SIZE)
+    frame_rgb: np.ndarray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
 
-                masks = result.masks.xy
-                for mask in masks:
-                    mask = mask.astype(int)
-                    cv2.drawContours(background, [mask], -1, 255, thickness=cv2.FILLED)
+    results = model.predict(frame_rgb, conf=0.5, classes=0)
 
-                # Convert the frame back to BGR for saving
-                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                result_frame = cv2.bitwise_and(frame_bgr, frame_bgr, mask=background)
+    for result in results:
+        if hasattr(result, 'masks') and result.masks is not None:
+            height, width = result.orig_img.shape[:2]
+            background: np.ndarray = np.zeros((height, width), dtype=np.uint8)
 
-                return result_frame
+            masks = result.masks.xy
+            for mask in masks:
+                mask = mask.astype(int)
+                cv2.drawContours(background, [mask], -1, 255, thickness=cv2.FILLED)
 
-        return frame  # Return the original frame if no masks found
+            frame_bgr: np.ndarray = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            result_frame: np.ndarray = cv2.bitwise_and(frame_bgr, frame_bgr, mask=background)
 
-    def process_video(self):
-        self.open_video()  
+            return result_frame
 
-        while self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if not ret:
-                print("End of video or cannot receive frame.")
-                break
+    return frame  # Return the original frame if no masks found
+    
+def release_resources(cap: cv2.VideoCapture, out: cv2.VideoWriter) -> None:
+    if cap:
+        cap.release()
+    if out:
+        out.release()
 
-            processed_frame = self.process_frame(frame)
+def process_video(input_video_path: str, output_video_path: str) -> None:
+    cap, out = open_video(input_video_path, output_video_path)
 
-            self.out.write(processed_frame)
+    while cap.isOpened():
+        ret: bool
+        frame: np.ndarray
+        ret, frame = cap.read()
+        if not ret:
+            print("End of video or cannot receive frame.")
+            break
+
+        processed_frame: np.ndarray = process_frame(frame, model)
+
+        out.write(processed_frame)
+
+    release_resources(cap, out)
+    print(f"Processed video saved to: {output_video_path}")
+    return output_video_path
 
 
-        self.release_resources()
 
-        return self.output_video_path
 
-    def release_resources(self):
-        if self.cap:
-            self.cap.release()
-        if self.out:
-            self.out.release()
-        cv2.destroyAllWindows()
-        print(f"Processed video saved to: {self.output_video_path}")
+
 

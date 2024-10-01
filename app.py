@@ -4,7 +4,7 @@ import cv2
 import streamlit as st
 
 from cut_video import main
-from process_video import VideoProcessor
+from process_video import process_video
 
 title = st.title("CV Test Task")
 
@@ -33,8 +33,8 @@ if video_file is not None:
 
         if st.button("Process video"):
             # function to process video (background removal)
-            processed_video = VideoProcessor(st.session_state.cropped_video, f'output_video.webm')
-            st.session_state.processed_video = processed_video.process_video() # processed video
+            processed_video = process_video(st.session_state.cropped_video, f'output_video.webm')
+            st.session_state.processed_video = processed_video # processed video
             if st.session_state.cropped_video:
                 st.video(st.session_state.processed_video)
                 print(st.session_state.processed_video)
