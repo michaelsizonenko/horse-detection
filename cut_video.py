@@ -1,9 +1,11 @@
+from typing import Optional
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Function to check if the horse is moving right
-def is_moving_right(p0, p1, status):
+def is_moving_right(p0, p1, status) -> bool:
 
     total_motion_x = 0  # Total motion along the X axis for all points
     moving_points_count = 0
@@ -34,12 +36,12 @@ def is_moving_right(p0, p1, status):
     # Determine if the horse is moving to the right
     if rightward_motion_count > 0:
         avg_rightward_motion_x = total_rightward_motion_x / rightward_motion_count
-        return avg_rightward_motion_x > 6  # Threshold for detecting rightward movement
+        return avg_rightward_motion_x > 5  # Threshold for detecting rightward movement
 
     return False
 
 # Main function
-def main(video_path, output_filename="horse_moving_right_fragment.webm", stop_threshold=15):
+def main(video_path, output_filename="horse_moving_right_fragment.webm", stop_threshold=25) -> Optional[str]:
     # Open video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -68,7 +70,7 @@ def main(video_path, output_filename="horse_moving_right_fragment.webm", stop_th
     old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
 
     # Find initial points to track (good features to track)
-    p0 = cv2.goodFeaturesToTrack(old_gray, maxCorners=50, qualityLevel=0.2, minDistance=20, blockSize=15)
+    p0 = cv2.goodFeaturesToTrack(old_gray, maxCorners=50, qualityLevel=0.2, minDistance=70, blockSize=15)
 
     # Create a mask for drawing the tracks
     mask = np.zeros_like(old_frame)
