@@ -41,7 +41,7 @@ def is_moving_right(p0, p1, status) -> bool:
     return False
 
 # Main function
-def main(video_path, output_filename="horse_moving_right_fragment.webm", stop_threshold=25) -> Optional[str]:
+def main(video_path, output_filename="cropped_video.webm", stop_threshold=25) -> Optional[str]:
     # Open video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():

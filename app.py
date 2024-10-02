@@ -1,47 +1,76 @@
 import tempfile
-
 import streamlit as st
-
-from cut_video import main as cut_video_main
 from process_video import VideoProcessor
+from cut_video import main as cut_video_main
 
 
-def main() -> None:
+class VideoService:
+    def __init__(self):
+        self.initialize_session_state()
 
-    st.title("CV Test Task")
+    def initialize_session_state(self) -> None:
+        """Initializes session state variables."""
+        if "cropped_video" not in st.session_state:
+            st.session_state["cropped_video"] = None
+        if "processed_video" not in st.session_state:
+            st.session_state["processed_video"] = None
+        if "button_pressed" not in st.session_state:
+            st.session_state["button_pressed"] = False
 
-    video_file = st.file_uploader("Upload a video")
+    def upload_and_display_video(self) -> tempfile.NamedTemporaryFile:
+        """Handles video file upload and displays the video."""
+        video_file = st.file_uploader("Upload a video")
+        if video_file:
+            tfile = tempfile.NamedTemporaryFile(delete=False)
+            tfile.write(video_file.read())
+            st.video(tfile.name)
+            return tfile
+        return None
 
-    if "cropped_video" not in st.session_state:
-        st.session_state["cropped_video"] = None
-    if "processed_video" not in st.session_state:
-        st.session_state["processed_video"] = None
-
-    if video_file is not None:
-
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(video_file.read())
-
-        st.video(tfile.name)
-
+    def crop_video(self, tfile: tempfile.NamedTemporaryFile) -> None:
+        """Crops the video and stores it in session state."""
         if st.button("Crop video"):
             with st.spinner("Cropping video..."):
                 cropped_video = cut_video_main(tfile.name)
                 st.session_state["cropped_video"] = cropped_video
                 st.write("Video cropped successfully.")
 
-        if st.session_state["cropped_video"] is not None:
-            st.video(st.session_state["cropped_video"])
+    def process_video(self) -> None:
+        """Processes the cropped video and removes the background."""
+        if st.session_state.get("button_pressed", False):  # Check if button was pressed
+            with st.spinner("Removing background..."):
+                videoprocessor = VideoProcessor(st.session_state["cropped_video"])
+                processed_video = videoprocessor.process_video("output_video.webm")
+                st.session_state["processed_video"] = processed_video
+                st.write("Background removed successfully.")
+        else:
+            button = st.button("Remove background")
+            if button:
+                st.session_state["button_pressed"] = True
+                st.rerun()  
 
-            if st.button("Process video"):
-                with st.spinner("Processing video... (Removing background)"):
-                    videoprocessor = VideoProcessor(st.session_state["cropped_video"])
-                    processed_video = videoprocessor.process_video("output_video.webm")
-                    st.session_state["processed_video"] = processed_video
-                    st.write("Background removed successfully.")
+    def display_video(self, key: str) -> None:
+        """Displays a video stored in session state."""
+        if st.session_state.get(key) is not None:
+            st.video(st.session_state[key])
 
-        if st.session_state["processed_video"] is not None:
-            st.video(st.session_state["processed_video"])
+
+def main() -> None:
+    """Main function to run the Streamlit app."""
+    st.set_page_config(page_title="CV app", page_icon=":horse:")
+    st.title("Horse Motion Detection Task")
+
+    video_service = VideoService()
+
+    tfile = video_service.upload_and_display_video()
+
+    if tfile:
+        video_service.crop_video(tfile)
+        video_service.display_video("cropped_video")
+
+    if st.session_state["cropped_video"]:
+        video_service.process_video()
+        video_service.display_video("processed_video")
 
 
 if __name__ == "__main__":
