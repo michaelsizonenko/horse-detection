@@ -23,11 +23,14 @@ def main() -> None:
 
         st.video(tfile.name)
 
-        videoprocessor = VideoProcessor(tfile.name)
+        videoprocessor = VideoProcessor()
 
         if st.button("Crop video"):
             with st.spinner("Cropping video..."):
-                cropped_video = videoprocessor.cut_video("horse_moving_right_fragment.webm")
+                cropped_video = videoprocessor.cut_video(
+                    input_video_path=tfile.name,
+                    output_video_path="horse_moving_right_fragment.webm"
+                )
                 st.session_state["cropped_video"] = cropped_video
                 st.write("Video cropped successfully.")
 
@@ -36,7 +39,10 @@ def main() -> None:
 
             if st.button("Process video"):
                 with st.spinner("Processing video... (Removing background)"):
-                    processed_video = videoprocessor.process_video("output_video.webm")
+                    processed_video = videoprocessor.process_video(
+                        input_video_path=st.session_state["cropped_video"],
+                        output_video_path="output_video.webm"
+                    )
                     st.session_state["processed_video"] = processed_video
                     st.write("Background removed successfully.")
 

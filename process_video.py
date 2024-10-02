@@ -2,27 +2,33 @@ import cv2
 import numpy as np
 from ultralytics import YOLO  # Assuming the YOLO model is imported from ultralytics
 
-IMG_SIZE: tuple[int, int] = (640, 640)
 
 class VideoProcessor:
-    def __init__(self, input_video_path: str, model_path: str = "best.pt") -> None:
-        self.input_video_path: str = input_video_path
+    def __init__(self, model_path: str = "best.pt") -> None:
         self.model = YOLO(model_path)
+        self.video_size: tuple[int, int] | None = None
         self.cap: cv2.VideoCapture | None = None
         self.out: cv2.VideoWriter | None = None
 
-    def open_video(self,output_video_path:str) -> None:
-        self.cap = cv2.VideoCapture(self.input_video_path)
+    def open_video(self, input_video_path: str, output_video_path: str) -> None:
+        self.cap = cv2.VideoCapture(input_video_path)
         if not self.cap.isOpened():
-            raise IOError(f"Error: Could not open video {self.input_video_path}")
+            raise IOError(f"Error: Could not open video {input_video_path}")
 
         fps: int = int(self.cap.get(cv2.CAP_PROP_FPS))
 
-        fourcc: int = cv2.VideoWriter_fourcc(*'vp80') 
-        self.out = cv2.VideoWriter(output_video_path, fourcc, fps, IMG_SIZE)
+        fourcc: int = cv2.VideoWriter_fourcc(*'vp80')
+        if self.video_size is None:
+            frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.video_size = (frame_width, frame_height)
+
+        self.out = cv2.VideoWriter(
+            output_video_path, fourcc, fps, self.video_size)
 
         if not self.out.isOpened():
-            raise IOError(f"Error: Could not open output video {output_video_path}")
+            raise IOError(
+                f"Error: Could not open output video {output_video_path}")
 
     def is_moving_right(self, p0, p1, status) -> bool:
         total_motion_x = 0  # Total motion along the X axis for all points
@@ -35,7 +41,8 @@ class VideoProcessor:
         for i in range(len(p0)):
             if status[i] == 1:  # Process only successfully tracked points
                 motion_x = p1[i][0] - p0[i][0]  # Horizontal movement (x)
-                total_motion_x += motion_x[0]  # Sum up the motion of all points to estimate global motion
+                # Sum up the motion of all points to estimate global motion
+                total_motion_x += motion_x[0]
                 moving_points_count += 1
 
         # Estimate global shift (average scene movement)
@@ -45,8 +52,10 @@ class VideoProcessor:
         # Calculate the relative movement of the object
         for i in range(len(p0)):
             if status[i] == 1:
-                motion_x = p1[i][0] - p0[i][0]  # Horizontal movement of the point
-                relative_motion_x = motion_x[0] - avg_motion_x  # Relative movement of the point
+                # Horizontal movement of the point
+                motion_x = p1[i][0] - p0[i][0]
+                # Relative movement of the point
+                relative_motion_x = motion_x[0] - avg_motion_x
 
                 if relative_motion_x > 0:  # Rightward movement relative to the scene
                     total_rightward_motion_x += relative_motion_x
@@ -59,9 +68,9 @@ class VideoProcessor:
 
         return False
 
-    def cut_video(self, output_video_path: str,
-                          stop_threshold: int = 25) -> str:
-        self.open_video(output_video_path=output_video_path)
+    def cut_video(self, input_video_path: str, output_video_path: str,
+                  stop_threshold: int = 25) -> str:
+        self.open_video(input_video_path, output_video_path=output_video_path)
 
         # Parameters for Lucas-Kanade Optical Flow
         lk_params = dict(winSize=(21, 21),
@@ -77,7 +86,8 @@ class VideoProcessor:
         old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
 
         # Find initial points to track (good features to track)
-        p0 = cv2.goodFeaturesToTrack(old_gray, maxCorners=50, qualityLevel=0.2, minDistance=70, blockSize=15)
+        p0 = cv2.goodFeaturesToTrack(
+            old_gray, maxCorners=50, qualityLevel=0.2, minDistance=70, blockSize=15)
 
         horse_moving = False
         frame_count = 0
@@ -89,16 +99,16 @@ class VideoProcessor:
                 print("End of video or cannot receive frame.")
                 break
 
-
-
             # Calculate optical flow (Lucas-Kanade method)
             frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            p1, status, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
+            p1, status, err = cv2.calcOpticalFlowPyrLK(
+                old_gray, frame_gray, p0, None, **lk_params)
 
             # Check if the object is moving to the right
             if self.is_moving_right(p0, p1, status):
                 if not horse_moving:
-                    print(f"Object started moving right at frame {frame_count}.")
+                    print(
+                        f"Object started moving right at frame {frame_count}.")
                     horse_moving = True
 
                 self.out.write(frame)
@@ -119,36 +129,41 @@ class VideoProcessor:
             frame_count += 1
 
         self.release_resources()
-        self.input_video_path = output_video_path
         return output_video_path
 
-
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
-        frame_resized: np.ndarray = cv2.resize(frame, IMG_SIZE)
+        frame_resized: np.ndarray = cv2.resize(
+            frame, (640, 640))  # resize frame to input to yolo
         frame_rgb: np.ndarray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
 
-        results = self.model.predict(frame_rgb, conf=0.5, classes=0,verbose=False)
+        results = self.model.predict(
+            frame_rgb, conf=0.5, classes=0, verbose=False)
 
         for result in results:
             if hasattr(result, 'masks') and result.masks is not None:
                 height, width = result.orig_img.shape[:2]
-                background: np.ndarray = np.zeros((height, width), dtype=np.uint8)
+                background: np.ndarray = np.zeros(
+                    (height, width), dtype=np.uint8)
 
                 masks = result.masks.xy
                 for mask in masks:
                     mask = mask.astype(int)
-                    cv2.drawContours(background, [mask], -1, 255, thickness=cv2.FILLED)
+                    cv2.drawContours(
+                        background, [mask], -1, 255, thickness=cv2.FILLED)
 
                 # Convert the frame back to BGR for saving
-                frame_bgr: np.ndarray = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                result_frame: np.ndarray = cv2.bitwise_and(frame_bgr, frame_bgr, mask=background)
+                frame_bgr: np.ndarray = cv2.cvtColor(
+                    frame_rgb, cv2.COLOR_RGB2BGR)
+                result_frame: np.ndarray = cv2.bitwise_and(
+                    frame_bgr, frame_bgr, mask=background)
 
                 return result_frame
 
         return frame  # Return the original frame if no masks found
 
-    def process_video(self, output_video_path: str) -> str:
-        self.open_video(output_video_path=output_video_path)
+    def process_video(self, input_video_path: str, output_video_path: str) -> str:
+        self.video_size = (640, 640)
+        self.open_video(input_video_path, output_video_path=output_video_path)
 
         while self.cap.isOpened():
             ret: bool
@@ -171,4 +186,3 @@ class VideoProcessor:
         if self.out:
             self.out.release()
         print(f"Processed video saved")
-
