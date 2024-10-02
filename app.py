@@ -3,12 +3,12 @@ import tempfile
 import streamlit as st
 
 from process_video import VideoProcessor
-from cut_video import main as cut_video_main
 
 
 class VideoService:
     def __init__(self):
         self._initialize_session_state()
+        self.videoprocessor = VideoProcessor()
 
     def _initialize_session_state(self) -> None:
         """Initializes session state variables."""
@@ -35,7 +35,9 @@ class VideoService:
         """Crops the video and stores it in session state."""
         if st.button("Crop video"):
             with st.spinner("Cropping video..."):
-                cropped_video = cut_video_main(tfile.name)
+                cropped_video = self.videoprocessor.cut_video(
+                    input_video_path=tfile.name, output_video_path="cropped_video.webm"
+                )
                 st.session_state["cropped_video"] = cropped_video
                 st.success("Video cropped successfully.")
 
@@ -43,8 +45,10 @@ class VideoService:
         """Processes the cropped video and removes the background."""
         if st.session_state["button_pressed"]:
             with st.spinner("Removing background..."):
-                processor = VideoProcessor(st.session_state["cropped_video"])
-                processed_video = processor.process_video("output_video.webm")
+                processed_video = self.videoprocessor.process_video(
+                    input_video_path=st.session_state["cropped_video"],
+                    output_video_path="output_video.webm",
+                )
                 st.session_state["processed_video"] = processed_video
                 st.success("Background removed successfully.")
         elif st.button("Remove background"):
@@ -59,7 +63,7 @@ class VideoService:
 
 def main() -> None:
     """Main function to run the Streamlit app."""
-    st.set_page_config(page_title="Horse Motion Detection Task", page_icon=":horse:")
+    st.set_page_config(page_title="Horse Motion Detection", page_icon=":horse:")
     st.title("Horse Motion Detection Task")
 
     video_service = VideoService()
