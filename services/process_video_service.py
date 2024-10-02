@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO  # Assuming the YOLO model is imported from ultralytics
+from typing import Union
 
 
-class VideoProcessor:
+class VideoProcessorService:
     def __init__(self, model_path: str = "best.pt") -> None:
         self.model = YOLO(model_path)
         self.video_size: tuple[int, int] | None = None
@@ -59,13 +60,15 @@ class VideoProcessor:
 
     def is_moving_right(self, p0, p1, status) -> bool:
         """Determines whether the tracked object is moving to the right based on the average motion of the points."""
-        total_motion_x, moving_points_count = self.calculate_total_motion(p0, p1, status)
+        total_motion_x, moving_points_count = self.calculate_total_motion(
+            p0, p1, status)
 
         if moving_points_count == 0:
             return False
 
         avg_motion_x = total_motion_x / moving_points_count
-        total_rightward_motion_x, rightward_motion_count = self.calculate_relative_motion(p0, p1, status, avg_motion_x)
+        total_rightward_motion_x, rightward_motion_count = self.calculate_relative_motion(
+            p0, p1, status, avg_motion_x)
         if rightward_motion_count > 0:
             avg_rightward_motion_x = total_rightward_motion_x / rightward_motion_count
             return avg_rightward_motion_x > 5  # Threshold for detecting rightward movement
@@ -89,7 +92,7 @@ class VideoProcessor:
         return p0
 
     def cut_video(self, input_video_path: str, output_video_path: str,
-                  stop_threshold: int = 25) -> str | None:
+                  stop_threshold: int = 25) -> Union[str, None]:
         """Cuts the video until the object stops moving to the right based on optical flow"""
         self.open_video(input_video_path, output_video_path=output_video_path)
 

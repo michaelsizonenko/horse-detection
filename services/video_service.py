@@ -2,13 +2,13 @@ import tempfile
 
 import streamlit as st
 
-from process_video import VideoProcessor
+from services.process_video_service import VideoProcessorService
 
 
 class VideoService:
     def __init__(self):
         self._initialize_session_state()
-        self.videoprocessor = VideoProcessor()
+        self.videoprocessor = VideoProcessorService()
 
     @staticmethod
     def _initialize_session_state() -> None:
