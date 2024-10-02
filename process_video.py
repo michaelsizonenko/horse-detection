@@ -11,6 +11,7 @@ class VideoProcessor:
         self.out: cv2.VideoWriter | None = None
 
     def open_video(self, input_video_path: str, output_video_path: str) -> None:
+        """Opens the input video for reading and sets up the output video writer for saving processed frames."""
         self.cap = cv2.VideoCapture(input_video_path)
         if not self.cap.isOpened():
             raise IOError(f"Error: Could not open video {input_video_path}")
@@ -132,6 +133,7 @@ class VideoProcessor:
         return output_video_path
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Processes frame and removes the background."""
         frame_resized: np.ndarray = cv2.resize(
             frame, (640, 640))  # resize frame to input to yolo
         frame_rgb: np.ndarray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
@@ -162,6 +164,7 @@ class VideoProcessor:
         return frame  # Return the original frame if no masks found
 
     def process_video(self, input_video_path: str, output_video_path: str) -> str:
+        """Processes every frame of video and removes the background."""
         self.video_size = (640, 640)
         self.open_video(input_video_path, output_video_path=output_video_path)
 
@@ -181,6 +184,7 @@ class VideoProcessor:
         return output_video_path
 
     def release_resources(self) -> None:
+        """Releases the resources used for video capture and video writing."""
         if self.cap:
             self.cap.release()
         if self.out:
