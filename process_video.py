@@ -30,46 +30,66 @@ class VideoProcessor:
             raise IOError(
                 f"Error: Could not open output video {output_video_path}")
 
-    def is_moving_right(self, p0, p1, status) -> bool:
-        total_motion_x = 0  # Total motion along the X axis for all points
+    @staticmethod
+    def calculate_total_motion(p0, p1, status) -> tuple[float, int]:
+        """Calculates the total motion in the x-direction for tracked point"""
+        total_motion_x = 0
         moving_points_count = 0
-
-        rightward_motion_count = 0
-        total_rightward_motion_x = 0
-        avg_motion_x = 0
-
-        for i in range(len(p0)):
-            if status[i] == 1:  # Process only successfully tracked points
-                motion_x = p1[i][0] - p0[i][0]  # Horizontal movement (x)
-                # Sum up the motion of all points to estimate global motion
-                total_motion_x += motion_x[0]
-                moving_points_count += 1
-
-        # Estimate global shift (average scene movement)
-        if moving_points_count > 0:
-            avg_motion_x = total_motion_x / moving_points_count
-
-        # Calculate the relative movement of the object
         for i in range(len(p0)):
             if status[i] == 1:
-                # Horizontal movement of the point
                 motion_x = p1[i][0] - p0[i][0]
-                # Relative movement of the point
-                relative_motion_x = motion_x[0] - avg_motion_x
+                total_motion_x += motion_x[0]
+                moving_points_count += 1
+        return total_motion_x, moving_points_count
 
-                if relative_motion_x > 0:  # Rightward movement relative to the scene
+    @staticmethod
+    def calculate_relative_motion(p0, p1, status, avg_motion_x) -> tuple[float, int]:
+        """Calculates the relative motion compared to the average motion"""
+        total_rightward_motion_x = 0
+        rightward_motion_count = 0
+        for i in range(len(p0)):
+            if status[i] == 1:
+                motion_x = p1[i][0] - p0[i][0]
+                relative_motion_x = motion_x[0] - avg_motion_x
+                if relative_motion_x > 0:
                     total_rightward_motion_x += relative_motion_x
                     rightward_motion_count += 1
+        return total_rightward_motion_x, rightward_motion_count
 
-        # Determine if the object is moving to the right
+    def is_moving_right(self, p0, p1, status) -> bool:
+        """Determines whether the tracked object is moving to the right based on the average motion of the points."""
+        total_motion_x, moving_points_count = self.calculate_total_motion(p0, p1, status)
+
+        if moving_points_count == 0:
+            return False
+
+        avg_motion_x = total_motion_x / moving_points_count
+        total_rightward_motion_x, rightward_motion_count = self.calculate_relative_motion(p0, p1, status, avg_motion_x)
         if rightward_motion_count > 0:
             avg_rightward_motion_x = total_rightward_motion_x / rightward_motion_count
             return avg_rightward_motion_x > 5  # Threshold for detecting rightward movement
 
         return False
 
+    @staticmethod
+    def read_first_frame(cap) -> tuple[np.ndarray, np.ndarray]:
+        """Reads and returns the first frame of the video along with its grayscale version."""
+        ret, frame = cap.read()
+        if not ret:
+            raise ValueError("Error: Unable to read the first frame.")
+        return frame, cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    @staticmethod
+    def update_tracking_points(p1, status, p0) -> np.ndarray:
+        """Updates the points for tracking based on their status and returns the updated points."""
+        good_new = p1[status == 1]
+        if good_new is not None and len(good_new) > 0:
+            return good_new.reshape(-1, 1, 2)
+        return p0
+
     def cut_video(self, input_video_path: str, output_video_path: str,
-                  stop_threshold: int = 25) -> str:
+                  stop_threshold: int = 25) -> str | None:
+        """Cuts the video until the object stops moving to the right based on optical flow"""
         self.open_video(input_video_path, output_video_path=output_video_path)
 
         # Parameters for Lucas-Kanade Optical Flow
@@ -77,13 +97,7 @@ class VideoProcessor:
                          maxLevel=1,
                          criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.05))
 
-        # Read the first frame
-        ret, old_frame = self.cap.read()
-        if not ret:
-            print("Error: Unable to read the first frame.")
-            return
-
-        old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
+        old_frame, old_gray = self.read_first_frame(self.cap)
 
         # Find initial points to track (good features to track)
         p0 = cv2.goodFeaturesToTrack(
@@ -112,9 +126,7 @@ class VideoProcessor:
                     horse_moving = True
 
                 self.out.write(frame)
-                good_new = p1[status == 1]
-                if good_new is not None and len(good_new) > 0:
-                    p0 = good_new.reshape(-1, 1, 2)
+                p0 = self.update_tracking_points(p1, status, p0)
                 stop_counter = 0
 
             elif horse_moving:
