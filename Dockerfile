@@ -1,12 +1,14 @@
-FROM python:3.12.2-slim
+FROM python:3.12.0-slim
 
-WORKDIR /app
+WORKDIR /code
 
-COPY . /app
+COPY ./requirements.txt .
 
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
+
+COPY . .
 
 EXPOSE 8501
 
